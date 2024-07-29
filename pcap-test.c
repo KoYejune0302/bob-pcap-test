@@ -1,6 +1,7 @@
 #include <pcap.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include "pcap-test.h"
 
 void usage() {
@@ -38,16 +39,16 @@ bool is_tcp(const u_char* packet) {
     return false;  
 }
 
-void tcp_analyze(const u_char* packet) {
+void tcp_analyze(const u_char* packet, const struct pcap_pkthdr* header) {
     // print following information
     // src mac / dst mac of ethernet header
     // src ip / dst ip of IP Header
     // src port / dst port of TCP header
-    // hexadecimal value(until max 20bytes) of Payload(Data)
-        struct eth_header* eth = (struct eth_header*)packet;
+    // payload of TCP
+    struct eth_header* eth = (struct eth_header*)packet;
     struct ip_header* ip = (struct ip_header*)(packet + sizeof(struct eth_header));
     struct tcp_header* tcp = (struct tcp_header*)(packet + sizeof(struct eth_header) + (ip->ip_vhl & 0x0F) * 4);
-    const u_char* payload = packet + sizeof(struct eth_header) + (ip->ip_vhl & 0x0F) * 4 + (tcp->tcp_offx2 >> 4) * 4;
+    const u_char* payload_data = packet + sizeof(struct eth_header) + (ip->ip_vhl & 0x0F) * 4 + (tcp->tcp_offx2 >> 4) * 4;
 
     printf("Ethernet Header\n");
     printf("   |-Source MAC Address      : %02x:%02x:%02x:%02x:%02x:%02x \n",
@@ -67,11 +68,18 @@ void tcp_analyze(const u_char* packet) {
     printf("   |-Source Port             : %d\n", ntohs(tcp->tcp_src));
     printf("   |-Destination Port        : %d\n", ntohs(tcp->tcp_dst));
 
+    struct payload payload;
+    memset(&payload, 0, sizeof(payload));
+    int payload_length = header->caplen - (payload_data - packet);
+    if (payload_length > 20) payload_length = 20;
+    memcpy(payload.data, payload_data, payload_length);
+
     printf("Data Payload\n");
     printf("   |-Payload (first 20 bytes): ");
-    for (int i = 0; i < 20 && payload + i < packet + sizeof(packet); i++) {
-        printf("%02x ", payload[i]);
+    for (int i = 0; i < payload_length; i++) {
+        printf("%02x ", payload.data[i]);
     }
+    
     printf("\n\n");
 }
 
@@ -98,7 +106,7 @@ int main(int argc, char* argv[]) {
 		// printf("%u bytes captured\n", header->caplen);
 
         if( is_tcp(packet) ){
-            tcp_analyze(packet);
+            tcp_analyze(packet, header);
         }
 	}
 

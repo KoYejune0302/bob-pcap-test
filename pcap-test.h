@@ -28,3 +28,7 @@ struct tcp_header {
     u_short tcp_sum;
     u_short tcp_urp;
 };
+
+struct payload {
+    u_char data[20];
+};
