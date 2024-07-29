@@ -1,1 +1,7 @@
-# bob-pcap-test
+# pcap test
+
+
+``` sh
+$ make
+$ pcap-test {interface}
+```
